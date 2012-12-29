@@ -69,14 +69,14 @@ int acmldap(char *user_name, char *user_passwd, char *config_path)
     LDAP *ldap;
     if (ldap_initialize(&ldap, config_path))
     {
-        fprintf(stderr, "ldap_initialize: %s\n", config_path);
+        fprintf(stderr, "[ACMLDAP] ldap_initialize: %s\n", config_path);
         return 1;
     }
 
     int rc = ldap_simple_bind_s(ldap, bind_dn, user_passwd);
     if (rc != LDAP_SUCCESS)
     {
-        fprintf(stderr, "ldap_simple_bind_s: %s\n", ldap_err2string(rc));
+        fprintf(stderr, "[ACMLDAP] ldap_simple_bind_s: %s\n", ldap_err2string(rc));
         return 2;
     }
 
