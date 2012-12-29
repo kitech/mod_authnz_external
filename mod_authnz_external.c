@@ -660,10 +660,8 @@ static int exec_hardcode(const request_rec *r, const char *extpath,
      */
 
     if (strcmp(check_type,"ACMLDAP")==0)
-        code= acmldap(r->user,password,config_file);
-    else
-	code= -5;
-    return code;
+        return acmldap(r->user,password,config_file);
+    return -5;
 #else
     return -4;		/* If _HARDCODE_ is not defined, always fail */
 #endif /* _HARDCODE_ */
