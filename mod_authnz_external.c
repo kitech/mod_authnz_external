@@ -51,13 +51,39 @@
  */
 
 
-/* Uncomment if you want to use a HARDCODE'd check (default off) */
-/* #define _HARDCODE_ */
+#define _HARDCODE_
 
 #ifdef _HARDCODE_
-  /* Uncomment if you want to use your own Hardcode (default off) */
-  /*             MUST HAVE _HARDCODE_ defined above!                */
-  /* #include "your_function_here.c" */
+
+#include <stdio.h>
+#include <ldap.h>
+
+/*
+    AddExternalAuth acmldap ACMLDAP:ldap://172.16.6.107:1389
+*/
+int acmldap(char *user_name, char *user_passwd, char *config_path)
+{
+    char bind_dn[1024];
+    sprintf(bind_dn, "cn=%s,ou=users", user_name);
+
+    LDAP *ldap;
+    if (ldap_initialize(&ldap, config_path))
+    {
+        fprintf(stderr, "ldap_initialize: %s\n", config_path);
+        return 1;
+    }
+
+    int rc = ldap_simple_bind_s(ldap, bind_dn, user_passwd);
+    if (rc != LDAP_SUCCESS)
+    {
+        fprintf(stderr, "ldap_simple_bind_s: %s\n", ldap_err2string(rc));
+        return 2;
+    }
+
+    ldap_unbind(ldap);
+    return 0;
+}
+
 #endif
 
 
@@ -633,8 +659,8 @@ static int exec_hardcode(const request_rec *r, const char *extpath,
      *     AddExternalAuth <keyword> <type>:<config file>
      */
 
-    if (strcmp(check_type,"EXAMPLE")==0)		/* change this! */
-        code= example(r->user,password,config_file);	/* change this! */
+    if (strcmp(check_type,"ACMLDAP")==0)
+        code= acmldap(r->user,password,config_file);
     else
 	code= -5;
     return code;

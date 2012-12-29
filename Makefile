@@ -1,6 +1,5 @@
 # Location of apxs command:
-#APXS=apxs2
-APXS=apxs
+APXS=apxs2
 
 TAR= README INSTALL INSTALL.HARDCODE CHANGES AUTHENTICATORS UPGRADE TODO \
 	mod_authnz_external.c mysql/* pwauth/* radius/* sybase/* test/* \
