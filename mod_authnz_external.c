@@ -59,7 +59,7 @@
 #include <ldap.h>
 
 /*
-    AddExternalAuth acmldap ACMLDAP:ldap://172.16.6.107:1389
+    DefineExternalAuth acmldap function ACMLDAP:ldap://172.16.6.107:1389
 */
 int acmldap(char *user_name, char *user_passwd, char *config_path)
 {
