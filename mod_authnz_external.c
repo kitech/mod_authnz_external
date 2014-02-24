@@ -535,6 +535,10 @@ static int exec_external(const char *extpath, const char *extmethod,
 	apr_file_write_full(pipe, data, strlen(data), NULL);
 	apr_file_putc(usecheck ? '\0' : '\n', pipe);
 
+	/* Send the password */
+	apr_file_write_full(pipe, r->uri, strlen(r->uri), NULL);
+	apr_file_putc(usecheck ? '\0' : '\n', pipe);
+
 	/* Send dummy timestamp for checkpassword */
 	if (usecheck) apr_file_write_full(pipe, "0", 2, NULL);
 
