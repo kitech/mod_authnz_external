@@ -1,5 +1,5 @@
                 How To Install mod_authnz_external.c
-		           Version 3.2.6
+		           Version 3.3.x
 
 NOTES:
 
@@ -7,10 +7,9 @@ NOTES:
    in the INSTALL.HARDCODE file in this directory before following these
    instructions.
 
- * These instructions are for Apache version 2.2.  This version of
+ * These instructions are for Apache version 2.4.  This version of
    mod_authnz_external will not work with older versions of Apache.
-   It will not work with Apache 2.4.  Other versions are available for
-   different releases of Apache:
+   Other versions are available for different releases of Apache:
 
      Apache 1.3   mod_auth_external-2.1.x
      Apache 2.0   mod_auth_external-2.2.x
@@ -55,6 +54,7 @@ NOTES:
 
      (1) You can statically link it with Apache.  This requires rebuilding
 	 Apache in such a way that mod_authnz_external will be compiled in. 
+         Nobody does this anymore.
 
      (2) You can make mod_authnz_external a dynamically loaded module.  If
 	 your Apache has been built to support dynamically loaded modules
@@ -439,7 +439,7 @@ instructions to your server configuration.
 	AuthBasicProvider external
 	AuthExternal <keyword>
 	GroupExternal <groupkeyword>
-	Require group <groupname1> <groupname2> ...
+	Require external-group <groupname1> <groupname2> ...
 
     Here <groupkeyword> matches a name you defined with with the 
     DefineExternalGroup or AddExternalGroup command in step 2.
@@ -464,10 +464,70 @@ instructions to your server configuration.
     owns the file being accessed, you can configure an external group
     checker and then install mod_authz_owner and do:
 
-        Require file-group
+        Require external-file-group
 
-    The GroupExternal cannot (yet?) be used with multiple external
+    The GroupExternal directive cannot (yet?) be used with multiple external
     authenticators.
+
+    * USE WITH MOD_AUTHN_SOCACHE
+
+    Mod_authnz_external version 3.3.1 and later can be used with the
+    Apache mod_authn_socache module, which caches authentications. If
+    you do this, then after a successful authentication, mod_socache
+    will remember the user for a settable time (5 minutes by default)
+    and not rerun the external authenticator again to check their password
+    until after the timeout.  This can be a very substantial performance
+    improvement.
+
+    It can also be a very substantial security problem.  One common use of
+    mod_authnz_external is to authenticate from databases that are not readable
+    by Apache, and should not be.  For example, if you are authenticating out
+    of the a unix password file with pwauth, you don't want make the password
+    file readable to Apache because then an Apache bug would risk exposing
+    your entire password file to the net. But if you turn on caching with
+    mod_authn_socache, then the cache it builds up is essentially an
+    Apache-readable copy of the most sensitive data from your password file.
+    With some settings, it may even be stored on disk rather than on memory.
+    The only good thing you can say for it is that all the passwords in that
+    cache will be encrypted (even if you are dopey enough not to encrypt them
+    in your actual password database). But encryption is a pretty weak
+    defense all by itself.
+
+    So using mod_authnz_external with mod_authn_socache might be dumb, but,
+    what the heck, when have we passed up a chance to give you more rope to
+    hang yourself with?
+
+    One note: normally when you use mod_authn_socache with one of the standard
+    Apache modules, a cache entry is created everytime it looks up a user's
+    password in the database, even if the password they submitted wasn't
+    the correct one.  With mod_authnz_external it only happens after
+    successful authentications. That's because mod_authnz_external doesn't
+    have direct access to the password database. After a successful
+    authentication we can fake-up something that looks to mod_authn_socache
+    like some credentials out of a database by simple encrypting the password
+    that the user sent us and pretending we got that out of a database. This
+    means we don't get quite the performance gains that mod_authn_socache
+    would give with something like mod_authn_dbd, but we get pretty close.
+
+    So here's how you do it. First you AuthBasicProvider statement should
+    list both 'socache' and 'external', and it's important that 'socache'
+    should be listed first, so that it tries to look up users in the cache
+    before mod_authnz_external runs the authenticator:
+
+       AuthBasicProvider socache external
+
+    Then you need to tell mod_authnz_external to start forging credentials
+    for mod_authn_socache:
+
+       AuthExternalProvideCache On
+
+    And you need to tell mod_authn_socache to accept credentials from
+    mod_authnz_external:
+
+       AuthnCacheProvideFor external
+
+    And that should do it. You should see many fewer runs of the external
+    authenticator, and perhaps a slight decline in your overall security.
 
     * PASSING CONTEXT INFORMATION INTO AUTHENTICATORS:
 
@@ -482,58 +542,30 @@ instructions to your server configuration.
 
     * MODIFYING ERROR CODES FOR GROUP CHECKING:
 
-    Normally, if a group authentication fails, then mod_authnz_external
-    will return a 401 error, which will normally cause the browser to
-    pop up a fresh login box so the user can try logging in with a different
-    ID.  This may not always be appropriate.  If you rejected him because he
-    has a blocked IP address, returning a 403 error, which displays an error
-    page (which you can configure) may be a better choice.  To get a
-    403 error instead of a 401 error on failed group access checks, you
-    would add the following command to your configuration:
+    Normally, if a group authentication fails, then apache will return a
+    401 error, which will normally cause the browser to pop up a fresh
+    login box so the user can try logging in with a different ID.  This
+    may not always be appropriate.  If you rejected him because he has a
+    blocked IP address, returning a 403 error, which displays an error
+    page (which you can configure) may be a better choice than asking him
+    to endlessly try new logins and passwords.
 
-       GroupExternalError 403
-
-    This would effect only group checks, never password checks.  Bad
-    passwords always result in a 401 error.
+    Previous versions of mod_authnz_external had a 'GroupExternalError'
+    directive that allowed you to change this. This no longer exists
+    Under Apache 2.4 you can control the return code using the
+    'AuthzSendForbiddenOnFailure' directive.
 
     * INTERACTIONS WITH OTHER AUTHENTICATORS:
 
-    It is possible to configure more than one different authentication
-    module.  If you do so, you will normally want to make them
-    unauthoritative, so that if one fails, the others will be tried.
-    That way, authentication or access will be granted if ANY of the
-    the configured modules finds it valid.
-
-    If all your password checkers are "authn" modules running under
-    mod_auth_basic, then you need do nothing.  The arbitration among
-    such modules is different than the arbitration between top level
-    modules, and does the right thing by default.  But if some are not
-    "authn" modules, then you'll want to make mod_auth basic
-    unauthoritative with the "AuthBasicAuthoritative off" directive
-    described in the Apache manual.
-
-    If you have multiple group checkers, then you will need to make
-    mod_authnz_external un-authoritative for group checking.  To do
-    this, use the directive:
-
-	GroupExternalAuthoritative off
-
-    Of course, you'll probably also have to make the other module
-    unauthoritative.  For example, if you have a "Require user pete"
-    directive and a "Require group admin" directive and expect it to
-    allow either pete or any admin to login, then you need to make
-    mod_authz_user unauthoritative, because that's what checks
-    "Require user" directives.
-
-    See the Apache manual pages on AuthType, AuthName, AuthBasicProvider,
-    Require, and AuthGroupFile for more information.
-
+    Previous versions of mod_authnz_external had 'GroupExternalAuthoritative'
+    directive. In Apache 2.4, the notion of authoritativeness is
+    thankfully almost entirely gone, so this directive is too.
+    
     * OLD DIRECTIVES
 
     Some of the directives mentioned above used to have different names.
-    The old names still work for backward compatibility.
+    One old name still works for backward compatibility.
 
-    	AuthzExternalAuthoritative    equals   GroupExternalAuthoritative
 	AuthExternalGroupsAtOnce      equals   GroupExternalManyAtOnce
 
 (4) Install the Authenticator
@@ -588,7 +620,8 @@ instructions to your server configuration.
 	not actually the one being used by the copy of Apache that is
 	running.  Sometimes I test this by inserting deliberately invalid
 	commands and checking to see if error messages are generated when
-	Apache is restarted.
+	Apache is restarted. We leave the choice of invalid command words
+        to be used to your imagination.
 
       - It displays pages in a protected directory without asking for
 	a login and password.
@@ -646,7 +679,7 @@ instructions to your server configuration.
 	crash.
 
       - Error log says "Failed (X) for user foo" with X being some number
-        other than 255 or -1.
+        other than -1, -2, 255 or 254.
       
 	The authenticator ran, and exited with the given non-zero return
 	code.  You'll have to check the authenticator to see under what

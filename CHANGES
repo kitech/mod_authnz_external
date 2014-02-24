@@ -1,3 +1,32 @@
+v3.3.2   (Jan Wolter - Dec 12, 2013)
+----------------------------------------------
+ * Replaced reference to remote_ip field of the connection record with
+   useragent_ip, due to the elimination of remote_ip in Apache 2.4.1. Thanks
+   to davidsansome and cjwatson for pointing out the need for this.
+ * Fixed a bug with setting of GROUP environment variable. Thanks to
+   ddarbyson for reporting this, and Guoan Hu for posting the fix.
+ * Added test/test.pipe.php, a PHP version of test/test.pipe contributed
+   by Claus Andersen.
+
+v3.3.1   (Jan Wolter - Oct 12, 2011)
+----------------------------------------------
+ * Deleted most of the sample authenticators from the distribution. They
+   are mostly old and crufty or available elsewhere. No need to clutter
+   the main distribution with them.
+ * Added code to support caching authentications with mod_authn_socache.
+   This is enabled by the "AuthExternalProvideCache On" directive.  This
+   feature should be considered experimental, since mod_authn_socache still
+   seems buggy and it's interface may not have been finalized.
+
+v3.3.0   (Jan Wolter - Oct 6, 2011)
+----------------------------------------------
+ * Revised to work with Apache 2.3 / 2.4.  Will not work with previous Apache
+   versions.
+ * Deleted 'GroupExternalAuthoritative' and 'AuthzExternalAuthoritative'
+   directives which are obsolete.
+ * Deleted 'GroupExternalError' directive which is superceded by Apache's
+   'AuthzSendForbiddenOnFailure' directive.
+
 v3.2.6   (Jan Wolter - Oct 6, 2011)
 -----------------------------------------------
  * Modified parsing of "Require groups" line so that you can have group
